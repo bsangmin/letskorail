@@ -1,0 +1,6 @@
+__pycache__
+*.pyc
+.python-version
+secret
+purchase.py
+bsang.py
