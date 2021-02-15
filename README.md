@@ -4,15 +4,17 @@
 
 [korail2](https://github.com/carpedm20/korail2)에 영감을 받아 작성한 코드입니다.
 
-## Requirement
-
-- python 3.6+
+주요 코드는 [korail2](https://github.com/carpedm20/korail2)에서 참조 했습니다.
 
 ## korail2에서 바뀐점
 
 - 중앙선(청량리 - 안동) KTX-이음 추가
 - 장애인 승객 추가 (코레일앱에서 별도 인증 필요)
 - 20년 12월 파라미터 반영
+
+## Requirement
+
+- python 3.6+
 
 ## Installation
 
