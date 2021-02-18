@@ -17,19 +17,20 @@ profile = korail.login(info["id"], info["pw"])
 psgrs = [AdultPsg(), ChildPsg(2)]
 
 ###########################
-trains = korail.search_train("청량리", "안동", 
+trains = korail.search_train(
+    "청량리",
+    "안동",
     date="20210301",
     time="060000",
     passengers=psgrs,
-    train_type=TrainType.KTX_EUM
+    train_type=TrainType.KTX_EUM,
 )
 
 print(trains[0])
 
 ###########################
-rsv = korail.reserve(trains[0],
-    passengers=psgrs,
-    option=SeatOption.SPECIAL_FIRST
+rsv = korail.reserve(
+    trains[0], passengers=psgrs, option=SeatOption.SPECIAL_FIRST
 )
 
 print(rsv.info)
