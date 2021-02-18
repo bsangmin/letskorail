@@ -1,5 +1,8 @@
 # coding=utf-8
 
+from typing import Generator
+from .constants import window_side, seat_type
+
 
 class TrainType:
     """type of train
@@ -24,6 +27,71 @@ class TrainType:
 
     def __init__(self):
         raise NotImplementedError("%s is abstarct class" % type(self).__name__)
+
+
+class Car(object):
+    h_seat_cnt = None
+    h_rest_seat_cnt = None
+    h_srcar_no = None
+    h_psrm_cl_cd = None
+    h_psrm_cl_nm = None
+    special_seats = None
+
+    _gen: Generator = None
+    _seats: dict = None
+
+    def __init__(self, data):
+        self.h_srcar_no = data.get("h_srcar_no")
+        self.h_seat_cnt = data.get("h_seat_cnt")
+        self.h_rest_seat_cnt = data.get("h_rest_seat_cnt")
+        self.h_psrm_cl_cd = data.get("h_psrm_cl_cd")
+        self.h_psrm_cl_nm = data.get("h_psrm_cl_nm")
+
+        ci = data.get("seatAttInfos")
+        if ci:
+            self.special_seats = tuple(c.get("seatAttCd", "015") for c in ci)
+
+    def _set_seats(self, gen: Generator):
+        assert isinstance(gen, Generator)
+        self._gen = gen
+
+    @property
+    def seats(self) -> dict:
+        try:
+            seats = dict()
+            rst = self._gen.send(None)
+
+            revers_flag = rst["h_seat_dir_cd"] == "2"
+
+            for s in rst["seat_infos"]["seat_info"]:
+                s_no = s["h_con_seat_no"]
+                if s_no == "0A":
+                    continue
+
+                if (not revers_flag and s["h_for_rev_dir_dv"] == "009") or (
+                    revers_flag and s["h_for_rev_dir_dv"] == "010"
+                ):
+                    direction = "순방향"
+                else:
+                    direction = "역방향"
+
+                seats[s_no] = {
+                    "sale_psb": s["h_sale_psb_flg"] == "Y",
+                    "near_door": s["h_door_nbor_flg"] == "Y",
+                    "near_wind": window_side[s["h_sigl_win_in_dv"]],
+                    "seat_type": seat_type[s["h_dmd_seat_att"]],
+                    "seat_no": s["h_con_seat_no"],
+                    "seat_no2": s["h_seat_no"],
+                    "direction": direction,
+                    "raw": s,
+                }
+
+            self._seats = seats
+
+        except StopIteration:
+            pass
+
+        return self._seats
 
 
 class Train(object):
@@ -83,6 +151,15 @@ class Train(object):
     journey_no = None
     # 예약 번호 h_pnr_no
     rsv_no = None
+    #########
+
+    # 예약 타입 enum
+    h_rsv_tp_cd = None
+    # enum_h_jrny_tp_cd
+    h_jrny_tp_cd = None
+
+    _gen: Generator = None
+    _cars: tuple[Car] = None
 
     def __init__(self, data):
         # 열차 타입 h_trn_clsf_cd
@@ -151,6 +228,11 @@ class Train(object):
         # 예약 번호 h_pnr_no
         self.rsv_no = data.get("h_pnr_no")
 
+        # enum_h_rsv_tp_cd
+        self.h_rsv_tp_cd = data.get("h_rsv_tp_cd")
+        # enum_h_jrny_tp_cd
+        self.h_jrny_tp_cd = data.get("h_jrny_tp_cd")
+
     def has_special_seat(self):
         return self.special_seat == "11"
 
@@ -159,6 +241,19 @@ class Train(object):
 
     def has_seat(self):
         return self.has_general_seat() or self.has_special_seat()
+
+    def _set_cars(self, gen: Generator):
+        assert isinstance(gen, Generator)
+        self._gen = gen
+
+    @property
+    def cars(self) -> tuple[Car]:
+        try:
+            self._cars = self._gen.send(None)
+        except StopIteration:
+            pass
+
+        return self._cars
 
     def __add__(self, other):
         assert isinstance(other, dict)
@@ -191,8 +286,9 @@ class Train(object):
 
     @property
     def info(self):
-        return "[{}]\n{}\n{}\n{}\n{}".format(
+        return "[{}]({})\n{}\n{}\n{}\n{}".format(
             self.train_name,
+            self.train_no,
             self._str_dpt(),
             self._str_arv(),
             self._str_run(),
@@ -205,6 +301,8 @@ class _seat(object):
     car_no = None
     # h_seat_no
     seat_no = None
+    # h_psg_tp_cd
+    psg_code = None
     # h_psg_tp_dv_nm
     psg_type = None
     # h_dcnt_knd_cd1_nm
@@ -213,11 +311,18 @@ class _seat(object):
     price = None
     # h_mlg_apl_flg
     h_mlg_apl_flg = None
+    # enum_h_seat_att_cd_2
+    h_seat_att_cd_2 = None
+    # enum_h_psrm_cl_cd
+    h_psrm_cl_cd = None
 
     def __init__(self, data):
         self.car_no = data.get("h_srcar_no")
         self.seat_no = data.get("h_seat_no")
+        self.psg_code = data.get("h_psg_tp_cd")
         self.psg_type = data.get("h_psg_tp_dv_nm", data.get("h_psg_tp_nm"))
         self.psg_sub_type = data.get("h_dcnt_knd_cd1_nm")
         self.price = int(data.get("h_rcvd_amt", 0))
         self.h_mlg_apl_flg = data.get("h_mlg_apl_flg")
+        self.h_seat_att_cd_2 = data.get("h_seat_att_cd_2")
+        self.h_psrm_cl_cd = data.get("h_psrm_cl_cd")
