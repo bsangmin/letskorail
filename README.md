@@ -119,6 +119,19 @@ print(trains[0].info)
 # 잔여: 일반실 O | 특실 O
 ```
 
+#### More information about train
+
+```python
+print(train.cars[0]) # 1호차 정보
+# <letskorail.train.Car object>
+
+print(train.cars[0].seats) # 1호차 좌석 정보
+# {'15D': {'near_wind': '창측', 'seat_type': '일반석', ... }
+
+print(train.cars[1].seats["1A"]) # 2호차 1A 좌석 정보
+# {'sale_psb': False, 'near_door': True, 'near_wind': '창측', ... }
+```
+
 ### 예약
 
 | param          | type                          | comment              | default      |
