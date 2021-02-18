@@ -1,6 +1,7 @@
 # coding=utf-8
 
-from typing import List
+from typing import List, Generator
+
 
 class Station(object):
     code = None
@@ -26,12 +27,13 @@ class Station(object):
         self.area = data.get("area")
         self.stop = data.get("stop")
 
+
 class Stations(object):
-    map_version = None # type str
-    count = 0 # type int
-    stations = list() # type List[Station]
+    map_version: str = None
+    count: int = 0
+    stations: Generator = None
 
     def __init__(self, data):
         self.map_version = data.get("map_version")
         self.count = int(data.get("count", 0))
-        self.stations = list(data.get("stations"))
+        self.stations = data.get("stations")

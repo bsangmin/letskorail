@@ -2,6 +2,7 @@
 
 from .train import Train, _seat
 
+
 class Reservation(object):
     # h_pnr_no
     rsv_no = None
@@ -40,7 +41,7 @@ class Reservation(object):
     def _set_seats(self, data):
         self.journey_cnt = data.get("h_jrny_cnt")
         self.h_wct_no = data.get("h_wct_no")
-        
+
         rsv_infos = data["jrny_infos"]["jrny_info"]
         for r in rsv_infos:
             sq = r["h_jrny_sqno"]
@@ -51,7 +52,7 @@ class Reservation(object):
 
             self.train_info[sq] = {
                 "train": Train(train),
-                "seats": [_seat(s) for s in seats],
+                "seats": tuple((_seat(s) for s in seats)),
             }
 
             # self.train_info[sq]["train"] = Train(train)
@@ -107,7 +108,7 @@ class Reservation(object):
             " -> ".join(trains),
             self._str_deadline(),
             "\n".join(details),
-            self._str_price()
+            self._str_price(),
         )
 
     @property
