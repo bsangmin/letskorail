@@ -33,7 +33,7 @@ class _exceptionForm(type):
 class KorailError(with_metaclass(_exceptionForm, Exception)):
     """Korail Base Error Class"""
 
-    def __init__(self, msg, code):
+    def __init__(self, msg, code=None):
         self.msg = msg
         self.code = code
 
@@ -76,3 +76,7 @@ class SoldOutError(KorailError):
 
     def __init__(self, msg="Sold out", code=None):
         KorailError.__init__(self, msg, code)
+
+
+class DiscountError(Exception):
+    pass
