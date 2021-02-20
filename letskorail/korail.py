@@ -6,15 +6,21 @@ import requests
 import base64
 import uuid
 from datetime import datetime, timedelta
-from .exceptions import result_checker, NoResultsError, SoldOutError
-from .train import Train, TrainType, Car
+from typing import Tuple, Optional, Generator, Iterable, Dict, Union
+
+from .exceptions import (
+    result_checker,
+    NoResultsError,
+    SoldOutError,
+    DiscountError,
+)
+from .train import Train, Trains, TrainType, Car, Cars
 from .passenger import AdultPsg, Passenger
 from .station import Station, Stations
 from .reservation import Reservation
 from .payment import CreditCard
 from .ticket import Ticket
-
-from typing import Dict, List, Tuple, Optional, Literal, Generator
+from .discount import Discount
 
 
 class SeatOption:
@@ -126,7 +132,7 @@ class Korail(object):
         rst = res.json()
         if result_checker(rst):
             stns = rst["stns"]["stn"]
-            stations_ = (Station(st) for st in stns)
+            stations_ = tuple(Station(st) for st in stns)
 
         res = self._sess.get(URL.STATION_INFO)
         rst = res.json()
@@ -181,13 +187,14 @@ class Korail(object):
         arv: str,
         date: Optional[str] = None,
         time: Optional[str] = None,
-        passengers: Optional[Literal[Passenger]] = None,
+        passengers: Optional[Iterable[Passenger]] = None,
+        discnt_type: Optional[Discount] = None,
         train_type: TrainType = TrainType.ALL,
         include_soldout: bool = False,
-    ) -> Tuple[Train]:
+    ) -> Trains:
         """See search_train
 
-        :return Tuple[Train]
+        :return Trains
         """
         td = timedelta(minutes=1)
         trains = []
@@ -199,8 +206,9 @@ class Korail(object):
                     arv,
                     date,
                     time,
-                    train_type,
                     passengers,
+                    discnt_type,
+                    train_type,
                     include_soldout,
                 )
                 trains.extend(tr)
@@ -209,7 +217,7 @@ class Korail(object):
                 time = next_time.strftime("%H%M%S")
             except NoResultsError:
                 break
-        return tuple(trains)
+        return Trains(trains)
 
     def search_train(
         self,
@@ -217,10 +225,11 @@ class Korail(object):
         arv: str,
         date: Optional[str] = None,
         time: Optional[str] = None,
-        passengers: Optional[Literal[Passenger]] = None,
+        passengers: Optional[Iterable[Passenger]] = None,
+        discnt_type: Optional[Discount] = None,
         train_type: TrainType = TrainType.ALL,
         include_soldout: bool = False,
-    ) -> Tuple[Train]:
+    ) -> Trains:
         """Search trains for specific time and date.
 
         :param dpt: A departure station
@@ -237,7 +246,7 @@ class Korail(object):
 
         :param include_soldout: (optional) includes trains which has no seats
 
-        :return Tuple[train.Train]
+        :return Trains
         """
 
         if not date:
@@ -250,14 +259,24 @@ class Korail(object):
         passengers = Passenger.reduce(passengers)
         count = Passenger.psg_count(passengers)
 
+        if isinstance(discnt_type, Discount):
+            rst, msg = discnt_type._vaild(passengers)
+            if not rst:
+                raise DiscountError(msg)
+        else:
+            discnt_type = None
+
+        discnt_no = discnt_type.disc_code if discnt_type else ""
+        menu_id = "41" if discnt_type else "11"
+
         data = self._req_data_builder(
             {
                 # 1: 직통, 2: 환승
                 "radJobId": "1",
                 # 열차 종류
                 "selGoTrain": train_type,
-                # 할인 수단(다자녀, 힘내라 청춘 등) 없으면 ""
-                "txtGdNo": "",  # 청춘 Y20150924001, 다자녀 Y20151104001
+                # 할인 수단
+                "txtGdNo": discnt_no,
                 # 출발 날짜
                 "txtGoAbrdDt": date,
                 # 도착역
@@ -267,9 +286,9 @@ class Korail(object):
                 # 출발역
                 "txtGoStart": dpt,
                 # 할인 메뉴 (일반: 11, 청춘,다자녀: 41, 4인동반: 51)
-                "txtMenuId": "11",
+                "txtMenuId": menu_id,
                 # 성인 승객
-                "txtPsgFlg_1": count["adult"],
+                "txtPsgFlg_1": count["adult"] + count["teenager"],
                 # 어린이 승객(유아 포함)
                 "txtPsgFlg_2": count["child"] + count["baby"],
                 # 시니어 승객
@@ -302,7 +321,7 @@ class Korail(object):
         res = self._sess.post(URL.SCHEDULE, data=data)
         rst = res.json()
 
-        trains: Tuple[Train] = tuple()
+        trains = tuple()
         if result_checker(rst):
             train_infos = rst["trn_infos"]["trn_info"]
 
@@ -322,22 +341,33 @@ class Korail(object):
                 yield rst
 
         # Generator
-        def cars_info(data):
-            res = self._sess.post(URL.CARS_INFO, data=data)
-            rst = res.json()
+        def cars_info(payload):
+            cars = list()
 
-            if result_checker(rst):
-                c_info = rst["srcar_infos"]["srcar_info"]
-                cars = tuple(Car(c) for c in c_info)
+            for data in payload:
+                res = self._sess.post(URL.CARS_INFO, data=data)
+                rst = res.json()
 
-                for c in cars:
-                    data["txtSrcarNo"] = c.h_srcar_no
-                    c._set_seats(car_seats(data))
+                if result_checker(rst):
+                    c_info = rst["srcar_infos"]["srcar_info"]
+                    cars_ = tuple(Car(c) for c in c_info)
 
-                yield cars
+                    for c in cars_:
+                        tmp = dict(data)
+                        tmp.update({"txtSrcarNo": c.h_srcar_no})
+
+                        c._set_seats(car_seats(tmp))
+
+                    cars.extend(cars_)
+
+            yield Cars(cars)
 
         for t in trains:
-            data2 = self._req_data_builder(
+            t.psgr_count = count
+            t.discount_no = discnt_no
+            t.menu_id = menu_id
+
+            tmp = self._req_data_builder(
                 {
                     "txtArvRsStnCd": t.arv_code,
                     "txtArvStnRunOrdr": t.h_arv_stn_run_ordr,
@@ -346,7 +376,7 @@ class Korail(object):
                     "txtDptStnRunOrdr": t.h_dpt_stn_run_ordr,
                     "txtGdNo": data.get("txtGdNo", ""),
                     "txtMenuId": data.get("txtMenuId", "11"),
-                    "txtPsrmClCd": data.get("txtPsrmClCd", "1"),
+                    "txtPsrmClCd": "1",
                     "txtRunDt": t.run_date,
                     "txtSeatAttCd": data.get("txtSeatAttCd_4", "015"),
                     "txtTotPsgCnt": count["total"],
@@ -356,12 +386,21 @@ class Korail(object):
                 }
             )
 
-            t._set_cars(cars_info(data2))
+            payload = []
+            if not t.general_seat == "00":
+                payload.append(tmp)
 
-        return trains
+            if not t.special_seat == "00":
+                tmp2 = dict(tmp)
+                tmp2.update({"txtPsrmClCd": "2"})
+                payload.append(tmp2)
+
+            t._set_cars(cars_info(payload))
+
+        return Trains(trains)
 
     def _seat_type(self, train, option, ignore_soldout):
-        seat_type = ""
+        seat_type = "1"
 
         if ignore_soldout:
             if option == SeatOption.GENERAL_ONLY:
@@ -373,17 +412,17 @@ class Korail(object):
                     "Just allowed GENERAL_ONLY or SPECIAL_ONLY when ignore_soldout is True"
                 )
         elif not train.has_seat():
-            raise SoldOutError()
+            raise SoldOutError("매진입니다.")
         elif option == SeatOption.GENERAL_ONLY:
             if train.has_general_seat():
                 seat_type = "1"
             else:
-                raise SoldOutError()
+                raise SoldOutError("일반석 매진입니다.")
         elif option == SeatOption.SPECIAL_ONLY:
             if train.has_special_seat():
                 seat_type = "2"
             else:
-                raise SoldOutError()
+                raise SoldOutError("특실 매진입니다.")
         elif option == SeatOption.GENERAL_FIRST:
             if train.has_general_seat():
                 seat_type = "1"
@@ -399,8 +438,7 @@ class Korail(object):
     def reserve(
         self,
         train: Train,
-        passengers: Optional[Literal[Passenger]] = None,
-        option: SeatOption = SeatOption.GENERAL_ONLY,
+        seat_opt: Union[SeatOption, Iterable] = SeatOption.GENERAL_ONLY,
         ignore_soldout: bool = False,
     ) -> Reservation:
         """Reserve train.
@@ -408,14 +446,13 @@ class Korail(object):
         :return Reservation
 
         """
+        iter_type = isinstance(seat_opt, (list, tuple, set))
+        if iter_type:
+            seat_type = seat_opt[0]["psrm_cl_cd"]
+        else:
+            seat_type = self._seat_type(train, seat_opt, ignore_soldout)
 
-        seat_type = self._seat_type(train, option, ignore_soldout)
-
-        if not passengers:
-            passengers = [AdultPsg(1)]
-
-        passengers = Passenger.reduce(passengers)
-        count = Passenger.psg_count(passengers)
+        count = train.psgr_count
 
         data = self._req_data_builder(
             {
@@ -433,7 +470,7 @@ class Korail(object):
                 "txtDptDt1": train.dpt_date,
                 "txtDptTm1": train.dpt_time,
                 # 할인 정보
-                "txtGdNo": "",  # 힘내라: Y20150924001
+                "txtGdNo": train.discount_no,
                 # ???
                 "txtJobId": "1101",
                 # 여정 중 열차 대수(환승일때 2)
@@ -443,7 +480,7 @@ class Korail(object):
                 # txtJrnyTpCdX X번째 열차 타입 코드
                 "txtJrnyTpCd1": "11",  # 환승일때 14
                 # 할인 타입
-                "txtMenuId": "11",  # 힘내라: 41
+                "txtMenuId": train.menu_id,
                 # 좌석 타입
                 "txtPsrmClCd1": seat_type,
                 # 출발 날짜
@@ -458,22 +495,26 @@ class Korail(object):
                 "txtStndFlg": "N",
                 # ???
                 "txtChgFlg1": "N",
-                # 좌석 분류?
+                # ???
                 "txtSeatAttCd1": "000",
+                # 순방, 역방(000 고정)
                 "txtSeatAttCd2": "000",
+                # 창측, 내측(000 고정)
                 "txtSeatAttCd3": "000",
+                # 좌석 타입
                 "txtSeatAttCd4": "015",
+                # ???
                 "txtSeatAttCd5": "000",
                 # 승객별 정보
                 "txtTotPsgCnt": count.get("total", 0),
                 "txtCompaCnt1": count.get("adult", 0),
-                "txtCompaCnt2": count.get("nothing", 0),
+                "txtCompaCnt2": count.get("teenager", 0),
                 "txtCompaCnt3": count.get("child", 0),
                 "txtCompaCnt4": count.get("baby", 0),
                 "txtCompaCnt5": count.get("senior", 0),
                 "txtCompaCnt6": count.get("dis_a", 0),
                 "txtCompaCnt7": count.get("dis_b", 0),
-                "txtCompaCnt8": count.get("nothing", 0),
+                "txtCompaCnt8": count.get("unknown", 0),
                 "txtDiscKndCd1": "000",
                 "txtDiscKndCd2": "P11",
                 "txtDiscKndCd3": "000",
@@ -492,11 +533,23 @@ class Korail(object):
                 "txtPsgTpCd8": "1",
             }
         )
+        if iter_type:
+            data.update({"txtSrcarCnt": len(seat_opt)})
+            for idx, o in enumerate(seat_opt):
+                data.update(
+                    {
+                        f"txtSeatNo{idx+1}": o["seat_no"],
+                        f"txtSrcarNo{idx+1}": o["car_no"],
+                    }
+                )
 
         res = self._sess.post(URL.RESERVATION, data=data)
         rst = res.json()
         if result_checker(rst):
             return self.reservations(rst["h_pnr_no"])[0]
+
+    # def seat_choice(self, train: Train, count: Dict):
+    #     cars = train.cars
 
     def reservations(self, rsv_no: Optional[str] = None) -> Tuple[Reservation]:
         """Get my all reservations
@@ -510,7 +563,7 @@ class Korail(object):
 
         data = self._req_data_builder()
 
-        res = self._sess.get(URL.MY_RESERVATIONS, params=data)
+        res = self._sess.post(URL.MY_RESERVATIONS, data=data)
         rst = res.json()
 
         if result_checker(rst):
