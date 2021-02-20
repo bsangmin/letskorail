@@ -84,6 +84,17 @@ class AdultPsg(Passenger):
         Passenger.__init_internal__(self, count)
 
 
+class TeenPsg(Passenger):
+    """청소년 (할인 열차에만 가능)"""
+
+    key = "teenager"
+    discount_type = "P11"
+    p_type = "1"
+
+    def __init__(self, count=1):
+        Passenger.__init_internal__(self, count)
+
+
 class ChildPsg(Passenger):
     """만6세 이상 13세 미만 아동"""
 
@@ -141,9 +152,16 @@ class DisabilityBPsg(Passenger):
 
 _psg_instances = (
     AdultPsg,
+    TeenPsg,
     ChildPsg,
     BabyPsg,
     SeniorPsg,
     DisabilityAPsg,
     DisabilityBPsg,
 )
+
+# _psg_instances_dict = {ins.key: ins for ins in _psg_instances}
+
+# def psg_instance_name(iterable):
+#     names = tuple(_psg_instances_dict[k].__name__ for k in iterable)
+#     return ", ".join(names)
