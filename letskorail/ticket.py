@@ -1,7 +1,7 @@
 # coding=utf-8
 
 from .train import Train
-from .reservation import _seat
+from .reservation import Seat
 
 
 class Ticket(object):
@@ -59,4 +59,4 @@ class Ticket(object):
             self.train_info = {sq: {"train": Train(t)}}
 
             seats = t["tk_seat_info"]
-            self.train_info[sq]["seats"] = tuple(_seat(s) for s in seats)
+            self.train_info[sq]["seats"] = tuple(Seat(s) for s in seats)
