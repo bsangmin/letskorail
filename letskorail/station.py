@@ -1,7 +1,5 @@
 # coding=utf-8
 
-from typing import List, Generator
-
 
 class Station(object):
     code = None
@@ -29,11 +27,11 @@ class Station(object):
 
 
 class Stations(object):
-    map_version: str = None
-    count: int = 0
-    stations: Generator = None
+    map_version = None
+    count = 0
+    stations = None
 
     def __init__(self, data):
-        self.map_version = data.get("map_version")
+        self.map_version = str(data.get("map_version", ""))
         self.count = int(data.get("count", 0))
-        self.stations = data.get("stations")
+        self.stations = tuple(data.get("stations", []))
