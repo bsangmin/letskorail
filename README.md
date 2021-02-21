@@ -297,7 +297,7 @@ from letskorail.options import YouthDisc, TeenDisc, ...
 
 `TeenDisc`: 청소년 드림
 
-`PregnantDisc`: 맘편한 KTX
+`MomDisc`: 맘편한 KTX
 
 `BasicLive`: 기차누리
 

@@ -15,7 +15,7 @@ from .passenger import (
 from .discount import (
     YouthDisc,
     TeenDisc,
-    PregnantDisc,
+    MomDisc,
     BasicLive,
     FamilyDisc,
     StoGDisc,

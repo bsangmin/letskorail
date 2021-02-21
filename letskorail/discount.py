@@ -97,7 +97,7 @@ class YouthDisc(Discount):
         }
 
 
-class PregnantDisc(Discount):
+class MomDisc(Discount):
     """맘편한 KTX"""
 
     def __init__(self):
