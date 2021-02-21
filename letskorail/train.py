@@ -151,7 +151,7 @@ class Car(object):
     @property
     def seats(self) -> Seats:
         try:
-            rst = self._gen.send(None)
+            rst = next(self._gen)
             self._seats = Seats(rst)
 
         except StopIteration:
@@ -260,7 +260,6 @@ class Train(object):
     menu_id = ""
 
     _gen: Generator = None
-    # _cars: Tuple[Car] = None
     _cars: Cars = None
 
     def __init__(self, data):
@@ -351,7 +350,7 @@ class Train(object):
     @property
     def cars(self) -> Cars:
         try:
-            self._cars = self._gen.send(None)
+            self._cars = next(self._gen)
         except StopIteration:
             pass
 

@@ -240,9 +240,11 @@ class Korail(object):
 
         :param time: (optional) A departure time (foramt: `hhmmss`)
 
-        :param train_type: (optional) A type of train
-
         :param passengers: (optional) The passengers
+
+        :parm discnt_type: (optional) Discount product
+
+        :param train_type: (optional) A type of train
 
         :param include_soldout: (optional) includes trains which has no seats
 
