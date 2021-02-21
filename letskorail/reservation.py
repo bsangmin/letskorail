@@ -1,6 +1,39 @@
 # coding=utf-8
 
-from .train import Train, _seat
+from .train import Train
+
+
+class Seat(object):
+    # h_srcar_no
+    car_no = None
+    # h_seat_no
+    seat_no = None
+    # h_psg_tp_cd
+    psg_code = None
+    # h_psg_tp_dv_nm
+    psg_type = None
+    # h_dcnt_knd_cd1_nm
+    psg_sub_type = None
+    # h_rcvd_amt
+    price = None
+    # h_mlg_apl_flg
+    h_mlg_apl_flg = None
+    # enum_h_seat_att_cd_2
+    h_seat_att_cd_2 = None
+    # enum_h_psrm_cl_cd
+    h_psrm_cl_cd = None
+
+    def __init__(self, data):
+        self.car_no = data.get("h_srcar_no")
+        self.seat_no = data.get("h_seat_no")
+        self.psg_code = data.get("h_psg_tp_cd")
+        self.psg_type = data.get("h_psg_tp_dv_nm", data.get("h_psg_tp_nm"))
+        self.psg_sub_type = data.get("h_dcnt_knd_cd1_nm")
+        self.price = int(data.get("h_rcvd_amt", 0))
+        self.h_mlg_apl_flg = data.get("h_mlg_apl_flg")
+        self.h_seat_att_cd_2 = data.get("h_seat_att_cd_2")
+        self.h_psrm_cl_cd = data.get("h_psrm_cl_cd")
+
 
 class Reservation(object):
     # h_pnr_no
@@ -40,7 +73,7 @@ class Reservation(object):
     def _set_seats(self, data):
         self.journey_cnt = data.get("h_jrny_cnt")
         self.h_wct_no = data.get("h_wct_no")
-        
+
         rsv_infos = data["jrny_infos"]["jrny_info"]
         for r in rsv_infos:
             sq = r["h_jrny_sqno"]
@@ -51,7 +84,7 @@ class Reservation(object):
 
             self.train_info[sq] = {
                 "train": Train(train),
-                "seats": [_seat(s) for s in seats],
+                "seats": tuple((Seat(s) for s in seats)),
             }
 
             # self.train_info[sq]["train"] = Train(train)
@@ -107,9 +140,9 @@ class Reservation(object):
             " -> ".join(trains),
             self._str_deadline(),
             "\n".join(details),
-            self._str_price()
+            self._str_price(),
         )
 
     @property
-    def info(self):
+    def info(self) -> str:
         return self._str_train_info()

@@ -42,39 +42,44 @@ profile = korail.login("010-0000-0000", PW)
 profile = korail.login("12345678", PW)
 
 print(profile)
-# out: <korail.Profile> object
+# <korail.Profile object>
 
 print(vars(profile))
-# out: {"name": ..., "email": ..., ...}
+# {"name": ..., "email": ..., ...}
 ```
 
 ### 열차 검색
 
-| param           | type                          | comment                         | default  |
-| --------------- | ----------------------------- | ------------------------------- | -------- |
-| dpt             | string                        | 출발지                          |          |
-| arv             | string                        | 목적지                          |          |
-| date            | string                        | (optional) 출발날짜(`yyyymmdd`) | now.date |
-| time            | string                        | (optional) 출발시간(`hhmmss`)   | now.time |
-| passengers      | List[[Passenger](#Passenger)] | (optional) 승객                 | AdultPsg |
-| train_type      | [TrainType](#TrainType)       | (optional) 열차종류             | ALL      |
-| include_soldout | bool                          | (optional) 매진포함             | False    |
+#### korail.search_train()
 
-#### 1. 기본 검색
+##### rtype: train.Trains
+
+| param           | type                              | comment                         | default  |
+| --------------- | --------------------------------- | ------------------------------- | -------- |
+| dpt             | string                            | 출발지                          |          |
+| arv             | string                            | 목적지                          |          |
+| date            | string                            | (optional) 출발날짜(`yyyymmdd`) | now.date |
+| time            | string                            | (optional) 출발시간(`hhmmss`)   | now.time |
+| passengers      | Iterable[[Passenger](#Passenger)] | (optional) 승객                 | AdultPsg |
+| discnt_type     | [Discount](#Discount)             | (optional) 할인상품             | None     |
+| train_type      | [TrainType](#TrainType)           | (optional) 열차종류             | ALL      |
+| include_soldout | bool                              | (optional) 매진포함             | False    |
+
+#### 기본 검색
 
 ```python
 trains = korail.search_train("부산", "동대구")
 # 당일, 현재시간, 성인 1명  열차 검색
 ```
 
-#### 2. 날짜 검색
+#### 날짜, 시간 조건
 
 ```python
 trains = korail.search_train("부산", "동대구", "20210301", "060000")
 # 21년 3월 1일 06시 이후 열차 검색
 ```
 
-#### 3. 승객 추가
+#### 승객 추가 [Passenger Class](#Passenger)
 
 ```python
 from letskorail.options import AdultPsg, BabyPsg, DisabilityAPsg
@@ -84,7 +89,7 @@ psgrs = [AdultPsg(), BabyPsg(1), DisabilityAPsg(2)]
 trains = korail.search_train("부산", "동대구", passengers=psgrs)
 ```
 
-#### 4. 열차 종류
+#### 열차 종류 [TrainType Class](#TrainType)
 
 ```python
 from letskorail.options import TrainType
@@ -93,7 +98,15 @@ trains = korail.search_train("부산", "동대구",
          train_type=TrainType.ITX_SAEMAEUL)
 ```
 
-#### 5. 매진된 열차 포함
+#### 할인 상품 [Discount Class](#Discount)
+
+```python
+from letskorail.options import YouthDisc
+
+trains = korail.search_train(..., discnt_type=YouthDisc()) # 힘내라 청춘
+```
+
+#### 매진된 열차 포함
 
 ```python
 trains = korail.search_train("부산", "동대구", include_soldout=True)
@@ -103,10 +116,10 @@ trains = korail.search_train("부산", "동대구", include_soldout=True)
 
 ```python
 print(trains)
-# List[<Train object>, ...]
+# <train.Trains object>
 
 print(trains[0])
-# <Train object>
+# <train.Train object>
 
 print(vars(trains[0]))
 # {'train_type': '00', 'train_group': '100', 'train_name': 'KTX' ... }
@@ -119,27 +132,53 @@ print(trains[0].info)
 # 잔여: 일반실 O | 특실 O
 ```
 
+#### More information about train
+
+```python
+print(train.cars[1]) # 1호차 정보
+# <train.Car object>
+
+print(train.cars[1].seats) # 1호차 좌석 정보
+# <train.Seats object>
+
+print(train.cars[1].seats.seat_info)
+# {"1A": <train.Seat object>, ... }
+```
+
 ### 예약
 
-| param          | type                          | comment              | default      |
-| -------------- | ----------------------------- | -------------------- | ------------ |
-| train          | train.Train                   | 열차 Object          |              |
-| passengers     | List[[Passenger](#Passenger)] | (optional) 승객      | AdultPsg     |
-| option         | [SeatOption](#SeatOption)     | (optional) 좌석 옵션 | GENERAL_ONLY |
-| ignore_soldout | bool                          | (optional) 매진 포함 | False        |
+#### korail.reserve()
 
-#### 1. 기본
+##### rtype: reservation.Reservation
+
+| param          | type                                             | comment              | default      |
+| -------------- | ------------------------------------------------ | -------------------- | ------------ |
+| train          | train.Train                                      | Train Object         |              |
+| seat_opt       | Union[[SeatOption](#SeatOption), Iterable[Dict]] | (optional) 좌석 옵션 | GENERAL_ONLY |
+| ignore_soldout | bool                                             | (optional) 매진 포함 | False        |
+
+#### 기본
 
 ```python
 reservation = korail.reserve(train)
 ```
 
-#### 2. 좌석 옵션
+#### 좌석 옵션
 
 ```python
 from letskorail.options import SeatOption
 
-reservation = korail.reserve(train, option=SeatOption.SPECIAL_ONLY)
+reservation = korail.reserve(train, seat_opt=SeatOption.SPECIAL_ONLY)
+```
+
+#### 선호 좌석
+
+[select_seat()](<#select_seat()>)
+
+```python
+seat = train.cars[5].select_seat()
+# {'car_no': ..., 'seat': '6A', 'seat_no': ...}
+reservation = korail.reserve(train, seat_opt=[seat])
 ```
 
 #### OUTPUT
@@ -203,15 +242,38 @@ rst = korail.refund(ticket)
 # True
 ```
 
+## Class
+
+### letskorail.train.Car
+
+#### select_seat()
+
+| param     | type   | comment              | values          | default |
+| --------- | ------ | -------------------- | --------------- | ------- |
+| location  | string | (optional) 선호 위치 | 중앙, 출입문    | 중앙    |
+| direction | string | (optional) 선호 방향 | 순방향, 역방향  | 순방향  |
+| position  | string | (optional) 선호 좌석 | 창측, 내측, 1인 | 창측    |
+| seat_type | string | (optional) 좌석 종류 | 일반석, 2층석   | 일반석  |
+
+```python
+print(train.cars[1].select_seat()) # 1호차 좌석 선택
+# {"car_no": "0001", "seat": "9A", ...}
+
+print(train.cars[3].select_seat(position="1인")) # KTX 특실에만 적용
+# {"car_no": "0003", "seat": "6A", ...}
+```
+
 ## Options
 
 ### Passenger
 
 ```python
-from letskorail.options import AdultPsg, ChildPsg ...
+from letskorail.options import AdultPsg, ChildPsg, ...
 ```
 
 `AdultPsg`: 성인(만 13세 이상)
+
+`TeenPsg`: 청소년(만 24세 이하)
 
 `ChildPsg`: 어린이(만 6세 - 12세)
 
@@ -223,6 +285,26 @@ from letskorail.options import AdultPsg, ChildPsg ...
 
 `DisabilityBPsg`: 경증 장애인(4급 - 6급)
 
+> 청소년은 "청소년 드림" 상품에만 적용되고 나머지 상품에는 성인으로 적용됨
+
+### Discount
+
+```python
+from letskorail.options import YouthDisc, TeenDisc, ...
+```
+
+`YouthDisc`: 힘내라 청춘
+
+`TeenDisc`: 청소년 드림
+
+`MomDisc`: 맘편한 KTX
+
+`BasicLive`: 기차누리
+
+`FamilyDisc`: 다자녀행복
+
+`StoGDisc`: KTX 5000 특가
+
 ### TrainType
 
 ```python
@@ -230,15 +312,21 @@ from letskorail.options import TrainType
 ```
 
 `ALL`
+
 `KTX_ALL`
 `KTX_SANCHEON`
 `KTX_EUM`
+
 `ITX_CHEONGCHUN`
+
 `ITX_SAEMAEUL`
 `SAEMAEUL`
+
 `MUGUNGHWA`
 `NURIRO`
+
 `TONGGUEN`
+
 `AIRPORT`
 
 ### SeatOption

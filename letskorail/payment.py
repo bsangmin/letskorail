@@ -1,24 +1,27 @@
 # coding=utf-8
 
+# pylint: disable=unsubscriptable-object
+
 import re
 from typing import Union
+
 
 class CreditCard:
     """Set credit card or check card information for payment.
 
-   card_type: 개인(0), 법인(1)
+    card_type: 개인(0), 법인(1)
 
-   card_no: 1234-1234-1234-1234 or 1234123412341234
+    card_no: 1234-1234-1234-1234 or 1234123412341234
 
-   card_pw: Two digits in front of the password.
+    card_pw: Two digits in front of the password.
 
-   card_date: Valid thru. format: `yymm` ex) 2021.01 => 2101
+    card_date: Valid thru. format: `yymm` ex) 2021.01 => 2101
 
-   reg_num: First digit of registration number.
-            (개인: 주민번호 앞자리, 법인: 사업자번호 10자리)
+    reg_num: First digit of registration number.
+             (개인: 주민번호 앞자리, 법인: 사업자번호 10자리)
 
-   monthly_plan: monthly installment plan. (할부)
-            (0, 2, 3, 4, 5, 6, 12, 24) 
+    monthly_plan: monthly installment plan. (할부)
+             (0, 2, 3, 4, 5, 6, 12, 24)
     """
 
     card_type = None
@@ -28,12 +31,20 @@ class CreditCard:
     reg_num = None
     monthly_plan = None
 
-    def __init__(self, card_type: Union[str, int], card_no: str, card_pw: str, card_date: str, reg_num: str, monthly_plan: str="0"):
+    def __init__(
+        self,
+        card_type: Union[str, int],
+        card_no: str,
+        card_pw: str,
+        card_date: str,
+        reg_num: str,
+        monthly_plan: str = "0",
+    ):
         if int(card_type) in (0, 1):
             self.card_type = "J" if int(card_type) == 0 else "S"
         else:
             raise ValueError("Invalid card type")
-        
+
         tmp = re.findall(r"\d", card_no)
         if len(tmp) == 16:
             self.card_no = "".join(tmp)
@@ -44,14 +55,14 @@ class CreditCard:
         if len(tmp) == 2:
             self.card_pw = card_pw
         else:
-            raise ValueError("Two digits in front of the password")
-        
+            raise ValueError("First two digits password in your card")
+
         tmp = re.findall(r"\d", card_date)
         if len(tmp) == 4:
             self.card_date = card_date
         else:
-            raise ValueError("Invalid valid thru number")
-        
+            raise ValueError("Valid thru number is wrong (format: yymm)")
+
         tmp = re.findall(r"\d", reg_num)
         if card_type == 0 and len(tmp) == 6:
             self.reg_num = reg_num
@@ -64,5 +75,3 @@ class CreditCard:
             self.monthly_plan = monthly_plan
         else:
             raise ValueError("Invalid value in monthly_plan")
-
-        
