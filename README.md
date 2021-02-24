@@ -173,12 +173,12 @@ reservation = korail.reserve(train, seat_opt=SeatOption.SPECIAL_ONLY)
 
 #### 선호 좌석
 
-[select_seat()](<#select_seat()>)
+[select_seats()](<#select_seats()>)
 
 ```python
-seat = train.cars[5].select_seat()
-# {'car_no': ..., 'seat': '6A', 'seat_no': ...}
-reservation = korail.reserve(train, seat_opt=[seat])
+seats = train.cars[5].select_seats()
+# [{'car_no': ..., 'seat': '6A', 'seat_no': ...}]
+reservation = korail.reserve(train, seat_opt=seats)
 ```
 
 #### OUTPUT
@@ -246,22 +246,56 @@ rst = korail.refund(ticket)
 
 ### letskorail.train.Car
 
-#### select_seat()
+#### select_seats()
 
 | param     | type   | comment              | values          | default |
 | --------- | ------ | -------------------- | --------------- | ------- |
+| count     | int    | (optional) 인원      | Integer         | 1       |
 | location  | string | (optional) 선호 위치 | 중앙, 출입문    | 중앙    |
 | direction | string | (optional) 선호 방향 | 순방향, 역방향  | 순방향  |
 | position  | string | (optional) 선호 좌석 | 창측, 내측, 1인 | 창측    |
 | seat_type | string | (optional) 좌석 종류 | 일반석, 2층석   | 일반석  |
 
 ```python
-print(train.cars[1].select_seat()) # 1호차 좌석 선택
-# {"car_no": "0001", "seat": "9A", ...}
+print(train.cars[1].select_seats()) # 1호차 좌석 선택
+# [{"car_no": "0001", "seat": "9A", ...}]
 
-print(train.cars[3].select_seat(position="1인")) # KTX 특실에만 적용
-# {"car_no": "0003", "seat": "6A", ...}
+print(train.cars[3].select_seats(position="1인")) # KTX 특실에만 적용
+# [{"car_no": "0003", "seat": "6A", ...}]
 ```
+
+##### :exclamation: 참고사항
+
+- Passenger > 1 이면 모든 승객은 코레일 좌석배정 시스템상 같은 호차에 배정됨.
+
+  따라서 아래와 같은 시나리오는 불가능.
+
+  ```python
+  psgrs = [AdultPsg(2)]
+  ...
+  seats = train.cars[5].select_seats()
+  seats2 = train.cars[6].select_seats()
+  ################## ^^^ 차량이 다르면 코레일에서 임의로 배정하거나 오류발생
+  seats.extend(seats2)
+  korail.reserve(train, seat_opt=seats) # diffrent result what you expect
+
+  #################
+
+  seats = train.cars[5].select_seats(count=2)
+  korail.reserve(train, seat_opt=seats) # It's okay
+  ```
+
+- 다수 예약시 특수좌석(유아동반, 휠체어석 등 인증이 필요한 좌석)이 필요한 경우
+
+  ```python
+  psgrs = [AdultPsg(), AdultPsg(), AdultPsg()]
+  ...
+  seats = train.cars[8].select_seats(count=2)
+  seats2 = train.cars[8].select_seats(seat_type="유아동반석")
+
+  seats.extend(seats2)
+  korail.reserve(train, seat_opt=seats)
+  ```
 
 ## Options
 
