@@ -81,13 +81,13 @@ class Seats(object):
 
             self.seat_info[s_no] = Seat(s)
 
-    def _select_seat(
-        self,
-        location,
-        direction,
-        position,
-        seat_type,
-    ) -> Dict:
+    def _select_seat(self, *args, **kwargs):
+        location = kwargs.get("location", "중앙")
+        direction = kwargs.get("direction", "순방향")
+        position = kwargs.get("position", "창측")
+        seat_type = kwargs.get("seat_type", "일반석")
+        count = int(kwargs.get("count", 1))
+        h_psrm_cl_cd = kwargs.get("h_psrm_cl_cd", "1")
 
         si = self.seat_info
 
@@ -99,27 +99,40 @@ class Seats(object):
                 and o.seat_type == seat_type
             )
 
-        condition = set(filter(lambda x: _filter(si[x]), si))
+        condition = list(filter(lambda x: _filter(si[x]), si))
 
         if not condition:
-            raise KorailError(f"조건에 맞는 좌석이 없습니다.")
+            raise KorailError("조건에 맞는 좌석이 없습니다.")
+
+        if len(condition) < count:
+            raise KorailError("좌석이 부족합니다.")
 
         if location == "중앙":
-            pos = 0
+            # pos = 0
+            zero_idx = True
         elif location == "출입문":
-            pos = -1
+            # pos = -1
+            zero_idx = False
 
         def _sort(o):
             new_no = int(int(self.max_seat) / 2) - int(o.seat_no2)
             return abs(new_no)
 
-        seat = sorted(condition, key=(lambda x: _sort(si[x])))[pos]
+        # seat = sorted(condition, key=(lambda x: _sort(si[x])))[pos]
+        srtd_seats = sorted(condition, key=(lambda x: _sort(si[x])))
 
-        return {
-            "car_no": self.car_no,
-            "seat_no": si[seat].seat_no2,
-            "seat": seat,
-        }
+        def _seat_key(i):
+            return srtd_seats[i if zero_idx else -(i + 1)]
+
+        return [
+            {
+                "car_no": self.car_no,
+                "seat_no": si[_seat_key(i)].seat_no2,
+                "seat": _seat_key(i),
+                "psrm_cl_cd": h_psrm_cl_cd,
+            }
+            for i in range(count)
+        ]
 
 
 class Car(object):
@@ -159,16 +172,26 @@ class Car(object):
 
         return self._seats
 
-    def select_seat(
-        self,
-        location="중앙",
-        direction="순방향",
-        position="창측",
-        seat_type="일반석",
-    ) -> Dict:
+    def select_seats(self, *args, **kwargs) -> List[Dict]:
+        """Get seat what you prefer
 
-        data = self.seats._select_seat(location, direction, position, seat_type)
-        data.update({"psrm_cl_cd": self.h_psrm_cl_cd})
+        Return List[Dict]
+
+        :param `count`: 인원수
+            default: 1
+        :param `location`: 중앙, 출입문
+            default: 중앙
+        :param `direction`: 순방향, 역방향
+            default: 순방향
+        :param `position`: 창측, 내측, 1인(특실 옵션)
+            default: 창측
+        :param `seat_type`: 일반석, 2층석, 유아동반석, 휠체어석, 전동휠체어석
+            default: 일반석
+        """
+
+        kwargs.update({"h_psrm_cl_cd": self.h_psrm_cl_cd})
+
+        data = self.seats._select_seat(*args, **kwargs)
 
         return data
 
