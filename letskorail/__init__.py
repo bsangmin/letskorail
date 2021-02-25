@@ -19,7 +19,7 @@ Login:
 
 See more: 
 
-https://github.com/bsangmin/letskorail/sample.py
+https://github.com/bsangmin/letskorail/blob/master/sample.py
 
 """
 
