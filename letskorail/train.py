@@ -410,7 +410,7 @@ class Train(object):
 
     @property
     def info(self) -> str:
-        return "[{}]({})\n{}\n{}\n{}\n{}".format(
+        return "[{}-{}]\n{}\n{}\n{}\n{}".format(
             self.train_name,
             self.train_no,
             self._str_dpt(),
