@@ -1,6 +1,5 @@
 # coding=utf-8
 
-# pylint: disable=relative-beyond-top-level,unsubscriptable-object
 import re
 import requests
 import base64
@@ -62,6 +61,10 @@ class URL:
 
     MY_TICKETS = f"{MOBILE}.myTicket.MyTicketList"
     MY_TICKET_DETAIL = f"{MOBILE}.refunds.SelTicketInfo"
+
+    PASS_TICKET_INFO = f"{MOBILE}.research.cmtrInfo.do"
+    PASS_SCHEDULE = f"{MOBILE}.research.assignScheduleView.do"
+    PASS_RESERVATION = f"{MOBILE}.reservation.seatAssign.do"
 
     REFUND_INFO = f"{MOBILE}.refunds.CommissionView"
     REFUND_REQ = f"{MOBILE}.refunds.RefundsRequest"
@@ -175,6 +178,8 @@ class Korail(object):
         if result_checker(rst):
             self.logined = True
             return Profile(rst)
+
+        return None
 
     def logout(self) -> None:
         """Logout"""
@@ -718,3 +723,144 @@ class Korail(object):
             rst = res.json()
 
             return result_checker(rst)
+
+    def pass_ticket_info(self, ps_ticket: Ticket) -> Dict:
+        """Pass(정기권) 티켓 상세 정보
+        
+        :param ps_ticket: ticket object
+
+        :return Dict
+        
+        """
+        data = self._req_data_builder(
+            {
+                "inquiryType": "0",
+                "jobDvCd": "c",
+                "ogtkRetPwd": ps_ticket.h_tk_ret_pwd,
+                "ogtkSaleDd": ps_ticket.h_sale_dt[-4:],
+                "ogtkSaleSqno": ps_ticket.h_sale_sqno[-5:],
+                "ogtkSaleWctNo": ps_ticket.h_wct_no[-5:],
+                "psgCnt": "0",
+            }
+        )
+
+        res = self._sess.post(URL.PASS_TICKET_INFO, data=data)
+        rst = res.json()
+
+        if result_checker(rst):
+            return rst
+
+    def pass_search(
+        self,
+        ps_ticket: Ticket,
+        dpt: str,
+        arv: str,
+        dt: Optional[str] = None,
+        tm: Optional[str] = None,
+        include_soldout: bool = False,
+    ) -> Tuple[Train]:
+        """pass(정기권) 열차 검색
+        
+        :param ps_ticket: ticket object
+
+        :param dpt: A departure station
+
+        :param arv: A arrival station
+
+        :param date: (optional) A departure date (format: `yyyyMMDD`)
+
+        :param time: (optional) A departure time (foramt: `hhmmss`)
+
+        :param passengers: (optional) The passengers
+
+        :parm discnt_type: (optional) Discount product
+
+        :param train_type: (optional) A type of train
+
+        :param include_soldout: (optional) includes trains which has no seats
+
+        :return Trains
+
+        """
+
+        data = self._req_data_builder(
+            {
+                "dptRsStnNm": dpt,
+                "arvRsStnNm": arv,
+                "chtnArvRsStnNm": "",
+                "dirtChtnDvCd": "1",
+                "dptDt": dt if dt else datetime.now().strftime("%Y%m%d"),
+                "dptTm": tm if tm else datetime.now().strftime("%H%M%S"),
+                "menuId": ps_ticket["menuId"],
+                "psgNum1": "1",
+                "psrmClCd": "9",
+                "seatAttCd1": ps_ticket["seatAttCd1"],
+                "stlbDturDvNm1": "",
+                "trnGpCd": "100",
+            }
+        )
+
+        res = self._sess.post(URL.PASS_SCHEDULE, data=data)
+        rst = res.json()
+
+        if result_checker(rst):
+            train_infos = rst["trn_infos"]["trn_info"]
+            trains = tuple(Train(t) for t in train_infos)
+
+            if not include_soldout:
+                trains = tuple(filter(lambda x: x.has_seat(), trains))
+
+            return trains
+
+        return None
+
+    def pass_reserve(self, train: Train, ticket: Ticket) -> Dict:
+        data = self._req_data_builder(
+            {
+                "arvRsStnCd_1": train.arv_code,
+                "arvStnConsOrdr_1": train.h_arv_stn_cons_ordr,
+                "arvStnRunOrdr_1": train.h_arv_stn_run_ordr,
+                "chgFlg_1": "N",
+                "cmtrDvCd_1": "01",
+                "custMgNo": "MP0014823293",
+                "dirSeatAttCd_1_1": "000",
+                "dptDt_1": train.dpt_date,
+                "dptRsStnCd_1": train.dpt_code,
+                "dptStnConsOrdr_1": train.h_dpt_stn_cons_ordr,
+                "dptStnRunOrdr_1": train.h_dpt_stn_run_ordr,
+                "dptTm_1": train.dpt_time,
+                "etcSeatAttCd_1_1": "000",
+                "jrnyCnt": "0001",
+                "jrnySqno_1": "001",
+                "jrnyTpCd_1": "11",
+                "locSeatAttCd_1_1": "000",
+                "menuId": "A4",  # 내일로 ticket["menuId"],
+                "ogtkRetPwd_1": ticket.h_tk_ret_pwd[-2:],
+                "ogtkSaleDd_1": ticket.h_sale_dt[-4:],
+                "ogtkSaleSqno_1": ticket.h_sale_sqno[-5:],
+                "ogtkSaleWctNo_1": ticket.h_wct_no[-5:],
+                "ortgCnt": "1",
+                "psgCnt": "1",
+                "psgInfoPerPrnb_1": "1",
+                "psgTpDvCd_1": "1",
+                "rqScarNum": "0",
+                "rqSeatAttCd_1_1": "015",
+                "runDt_1": train.run_date,
+                "seatCnt_1": "1",
+                "seatPsrmClCd_1_1": "1",
+                "smkSeatAttCd_1_1": "000",
+                "stlbTrnClsfCd_1": train.train_type,
+                "stndFlg": "N",
+                "totPrnb": "1",
+                "trnGpCd_1": train.train_group,
+                "trnNo_1": "{:05d}".format(int(train.train_no)),
+            }
+        )
+
+        # print(data)
+
+        res = self._sess.post(URL.PASS_RESERVATION, data=data)
+        rst = res.json()
+
+        # if result_checker(rst):
+        return rst

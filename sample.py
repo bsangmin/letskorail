@@ -7,6 +7,7 @@ from letskorail.options import AdultPsg, ChildPsg
 from letskorail.options import TrainType
 from letskorail.options import SeatOption
 from letskorail.options import YouthDisc
+from letskorail.ticket import Ticket
 
 with open("secret/info.json", "r") as f:
     info = json.load(f)
@@ -29,7 +30,7 @@ psgrs = [AdultPsg(), ChildPsg(2)]
 trains = korail.search_train(
     "청량리",
     "안동",
-    date="20210301",
+    date="20220101",
     time="060000",
     passengers=psgrs,
     train_type=TrainType.KTX_EUM,
@@ -68,3 +69,16 @@ print(rsv.info)
 # 예약 취소
 ###########################
 korail.cancel(rsv)
+
+###########################
+# 정기권 조회 및 예약
+###########################
+pass_tk: Ticket = None
+for tk in korail.tickets():
+    if tk.h_tk_knd_nm.find("내일로") >= 0:
+        pass_tk = korail.pass_ticket_info(tk)
+        break
+
+trains = korail.pass_search(pass_tk, "서울", "부산")
+
+korail.pass_reserve(trains[0], pass_tk)
