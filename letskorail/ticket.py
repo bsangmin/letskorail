@@ -24,6 +24,8 @@ class Ticket(object):
     # h_pnr_no
     h_pnr_no = None
 
+    h_ret_sale_dt = None
+
     train_info = {}
 
     def __init__(self, data):
@@ -42,12 +44,19 @@ class Ticket(object):
         self.h_sale_sqno = tk_info.get(
             "h_sale_sqno", tk_info.get("h_orgtk_sale_sqno")
         )
+
+        self.h_ret_sale_dt = tk_info.get(
+            "h_ret_sale_dt", tk_info.get("h_orgtk_ret_sale_dt")
+        )
+
         self.tk_no = "{}-{}-{}-{}".format(
             self.h_wct_no[-5:],
             self.h_sale_dt[-4:],
             self.h_sale_sqno[-5:],
             self.h_tk_ret_pwd[-2:],
         )
+
+        self.h_tk_knd_nm = tk_info.get("h_tk_knd_nm", "")
 
     def _detail(self, data):
         tk_infos = data["ticket_infos"]["ticket_info"]
