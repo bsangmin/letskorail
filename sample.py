@@ -78,6 +78,6 @@ korail.cancel(rsv)
 # 정기권 조회 및 예약
 ###########################
 ticket = korail.pass_ticket("내일로")
-trains = korail.pass_search(ticket, "북울산", "태화강", "20220207", "000000")
+trains = korail.pass_search(ticket, "서울", "부산", "20220207", "000000")
 rsv = korail.pass_reserve(ticket, trains[0])
 print(rsv.info)
