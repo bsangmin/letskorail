@@ -15,11 +15,11 @@
 
 예약 후 20분내로 결제를 완료해야 발권되고 이후엔 자동으로 취소됩니다.
 
-예약 -> 결제 단계에서 디바이스의 [고유번호(uuid)](./blob/master/letskorail/korail.py#L664)를 요구합니다.
+예약 -> 결제 단계에서 디바이스의 [고유번호(uuid)](https://github.com/bsangmin/blob/master/letskorail/korail.py#L664)를 요구합니다.
 
 고유번호를 생성하여 발권 할 수 있지만 앱에서 확인하면 `다른 기기에서 발권한 승차권`으로 표시되고 티켓이 비활성화 됩니다.
 
-자신의 uuid는 코레일 앱에서 승차권 확인 메뉴를 터치하면 https로 txtDeviceId 파라미터로 전송됩니다. 이 값을 확인하는 방법은 여러가지 있으나 저는 [ROOT 인증서를 사용한 프록시](..//ssl_unpinning_mobile_app)로 확인했습니다.
+자신의 uuid는 코레일 앱에서 승차권 확인 메뉴를 터치하면 https로 txtDeviceId 파라미터로 전송됩니다. 이 값을 확인하는 방법은 여러가지 있으나 저는 [ROOT 인증서를 사용한 프록시](https://github.com/bsangmin/ssl_unpinning_mobile_app)로 확인했습니다.
 
 
 
