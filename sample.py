@@ -7,12 +7,16 @@ from letskorail.options import AdultPsg, ChildPsg
 from letskorail.options import TrainType
 from letskorail.options import SeatOption
 from letskorail.options import YouthDisc
-from letskorail.ticket import Ticket
 
 with open("secret/info.json", "r") as f:
     info = json.load(f)
 
-korail = Korail()
+korail = Korail(info)
+
+###########################
+# 디바이스의 uuid를 알고 있을 떄
+###########################
+korail.set_uuid(info["uuid"])
 
 ###########################
 # 로그인
@@ -73,12 +77,7 @@ korail.cancel(rsv)
 ###########################
 # 정기권 조회 및 예약
 ###########################
-pass_tk: Ticket = None
-for tk in korail.tickets():
-    if tk.h_tk_knd_nm.find("내일로") >= 0:
-        pass_tk = korail.pass_ticket_info(tk)
-        break
-
-trains = korail.pass_search(pass_tk, "서울", "부산")
-
-korail.pass_reserve(trains[0], pass_tk)
+ticket = korail.pass_ticket("내일로")
+trains = korail.pass_search(ticket, "북울산", "태화강", "20220207", "000000")
+rsv = korail.pass_reserve(ticket, trains[0])
+print(rsv.info)

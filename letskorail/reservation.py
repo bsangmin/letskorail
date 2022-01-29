@@ -53,12 +53,18 @@ class Reservation(object):
     # h_wct_no
     h_wct_no = None
 
+    h_tmp_job_sqno1 = None
+    h_tmp_job_sqno2 = None
+
     train_info = {}
     # trains = None
 
     def __init__(self, data):
         trs = data["train_infos"]["train_info"]
         tr = trs[0]
+
+        self.h_tmp_job_sqno1 = data.get("h_tmp_job_sqno1", "000000")
+        self.h_tmp_job_sqno2 = data.get("h_tmp_job_sqno2", "000000")
 
         self.rsv_no = tr.get("h_pnr_no")
         self.journey_no = tr.get("h_jrny_sqno", "0001")

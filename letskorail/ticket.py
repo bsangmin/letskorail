@@ -26,6 +26,10 @@ class Ticket(object):
 
     h_ret_sale_dt = None
 
+    # 정기권 관련
+    seat_att_cd1 = None
+    menu_id = None
+
     train_info = {}
 
     def __init__(self, data):
@@ -59,10 +63,14 @@ class Ticket(object):
         self.h_tk_knd_nm = tk_info.get("h_tk_knd_nm", "")
 
     def _detail(self, data):
-        tk_infos = data["ticket_infos"]["ticket_info"]
+        tk_infos = data.get("ticket_infos", {}).get("ticket_info", [])
 
         self.h_wct_nm = data.get("h_wct_nm")
         self.h_pnr_no = data.get("h_pnr_no")
+
+        self.seat_att_cd1 = data.get("seatAttCd1")
+        self.menu_id = data.get("menuId")
+
         for t in tk_infos:
             sq = t["h_jrny_sqno"]
             self.train_info = {sq: {"train": Train(t)}}

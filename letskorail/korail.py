@@ -101,12 +101,16 @@ class Korail(object):
     _phone_regx = re.compile(r"(\d{3})-(\d{3,4})-(\d{4})")
 
     _device = "AD"
-    _version = "201223001"
+    _version = "210222001"
     _key = "korail1234567890"
 
     _k_id = None
     _k_pw = None
     _k_pw_b64 = None
+
+    _uuid = None
+
+    _cust_no = None
 
     logined = False
 
@@ -119,6 +123,9 @@ class Korail(object):
 
         self._sess = requests.Session()
         self._sess.headers.update({"user-agent": ua})
+
+    def set_uuid(self, uuid_):
+        self._uuid = uuid_
 
     def _req_data_builder(self, data={}):
         d = {
@@ -176,7 +183,9 @@ class Korail(object):
         rst = res.json()
 
         if result_checker(rst):
+            self._cust_no = rst.get("strCustNo")
             self.logined = True
+
             return Profile(rst)
 
         return None
@@ -636,7 +645,7 @@ class Korail(object):
         if result_checker(rst):
             ticket._detail(rst)
 
-    def buy_ticket(self, rsv: Reservation, cc: CreditCard) -> Ticket:
+    def buy_ticket(self, rsv: Reservation, cc: CreditCard = None) -> Ticket:
         """Buy ticket"""
         try:
             from .purchase import buy_ticket
@@ -660,7 +669,7 @@ class Korail(object):
                 "h_abrd_dt_to": "",
                 "h_page_no": "1",
                 "hiduserYn": "Y",
-                "txtDeviceId": uuid.uuid4(),
+                "txtDeviceId": self._uuid if self._uuid else uuid.uuid4(),
                 "txtIndex": "1",
             }
         )
@@ -724,31 +733,27 @@ class Korail(object):
 
             return result_checker(rst)
 
-    def pass_ticket_info(self, ps_ticket: Ticket) -> Dict:
-        """Pass(정기권) 티켓 상세 정보
-        
-        :param ps_ticket: ticket object
+    def pass_ticket(self, ticket_name) -> Ticket:
+        for tk in self.tickets():
+            if tk.h_tk_knd_nm.find(ticket_name) >= 0:
+                data = self._req_data_builder(
+                    {
+                        "inquiryType": "0",
+                        "jobDvCd": "c",
+                        "ogtkRetPwd": tk.h_tk_ret_pwd,
+                        "ogtkSaleDd": tk.h_sale_dt[-4:],
+                        "ogtkSaleSqno": tk.h_sale_sqno[-5:],
+                        "ogtkSaleWctNo": tk.h_wct_no[-5:],
+                        "psgCnt": "0",
+                    }
+                )
 
-        :return Dict
-        
-        """
-        data = self._req_data_builder(
-            {
-                "inquiryType": "0",
-                "jobDvCd": "c",
-                "ogtkRetPwd": ps_ticket.h_tk_ret_pwd,
-                "ogtkSaleDd": ps_ticket.h_sale_dt[-4:],
-                "ogtkSaleSqno": ps_ticket.h_sale_sqno[-5:],
-                "ogtkSaleWctNo": ps_ticket.h_wct_no[-5:],
-                "psgCnt": "0",
-            }
-        )
+                res = self._sess.post(URL.PASS_TICKET_INFO, data=data)
+                rst = res.json()
 
-        res = self._sess.post(URL.PASS_TICKET_INFO, data=data)
-        rst = res.json()
-
-        if result_checker(rst):
-            return rst
+                if result_checker(rst):
+                    tk._detail(rst)
+                    return tk
 
     def pass_search(
         self,
@@ -791,10 +796,10 @@ class Korail(object):
                 "dirtChtnDvCd": "1",
                 "dptDt": dt if dt else datetime.now().strftime("%Y%m%d"),
                 "dptTm": tm if tm else datetime.now().strftime("%H%M%S"),
-                "menuId": ps_ticket["menuId"],
+                "menuId": ps_ticket.menu_id,
                 "psgNum1": "1",
                 "psrmClCd": "9",
-                "seatAttCd1": ps_ticket["seatAttCd1"],
+                "seatAttCd1": ps_ticket.seat_att_cd1,
                 "stlbDturDvNm1": "",
                 "trnGpCd": "100",
             }
@@ -814,7 +819,7 @@ class Korail(object):
 
         return None
 
-    def pass_reserve(self, train: Train, ticket: Ticket) -> Dict:
+    def pass_reserve(self, ticket: Ticket, train: Train) -> Reservation:
         data = self._req_data_builder(
             {
                 "arvRsStnCd_1": train.arv_code,
@@ -822,7 +827,7 @@ class Korail(object):
                 "arvStnRunOrdr_1": train.h_arv_stn_run_ordr,
                 "chgFlg_1": "N",
                 "cmtrDvCd_1": "01",
-                "custMgNo": "MP0014823293",
+                "custMgNo": self._cust_no,
                 "dirSeatAttCd_1_1": "000",
                 "dptDt_1": train.dpt_date,
                 "dptRsStnCd_1": train.dpt_code,
@@ -834,7 +839,7 @@ class Korail(object):
                 "jrnySqno_1": "001",
                 "jrnyTpCd_1": "11",
                 "locSeatAttCd_1_1": "000",
-                "menuId": "A4",  # 내일로 ticket["menuId"],
+                "menuId": ticket.menu_id,  # 내일로 ticket["menuId"],
                 "ogtkRetPwd_1": ticket.h_tk_ret_pwd[-2:],
                 "ogtkSaleDd_1": ticket.h_sale_dt[-4:],
                 "ogtkSaleSqno_1": ticket.h_sale_sqno[-5:],
@@ -857,10 +862,8 @@ class Korail(object):
             }
         )
 
-        # print(data)
-
         res = self._sess.post(URL.PASS_RESERVATION, data=data)
         rst = res.json()
 
-        # if result_checker(rst):
-        return rst
+        if result_checker(rst):
+            return self.reservations(rst["h_pnr_no"])[0]
