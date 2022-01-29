@@ -15,7 +15,7 @@
 
 예약 후 20분내로 결제를 완료해야 발권되고 이후엔 자동으로 취소됩니다.
 
-예약 -> 결제 단계에서 디바이스의 [고유번호(uuid)](https://github.com/bsangmin/blob/master/letskorail/korail.py#L664)를 요구합니다.
+예약 -> 결제 단계에서 디바이스의 [고유번호(uuid)](https://github.com/bsangmin/letskorail/blob/master/letskorail/korail.py#L664)를 요구합니다.
 
 고유번호를 생성하여 발권 할 수 있지만 앱에서 확인하면 `다른 기기에서 발권한 승차권`으로 표시되고 티켓이 비활성화 됩니다.
 
